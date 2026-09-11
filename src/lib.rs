@@ -84,7 +84,14 @@ impl Data {
     pub(crate) fn len(&self) -> usize {
         match self {
             Data::UTF8S(v) => v.len(),
-            Data::UTF8(v) => v.len() + 1, // + \0
+            Data::UTF8(v) => {
+                if !v.is_empty() {
+                    v.len() + 1 // + \0
+                }
+                else {
+                    0
+                }
+            }
             Data::Int(_) => size_of::<u32>(),
         }
     }
