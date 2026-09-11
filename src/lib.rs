@@ -39,8 +39,8 @@ struct Header {
 #[derive(BinRead, BinWrite, Debug)]
 #[brw(little, repr = u16)]
 enum DataFmt {
-    /// A UTF8 string without a \0 termitanion byte
-    UTF8S = 0x4,
+    /// An array of bytes
+    Bytes = 0x4,
     /// A UTF8 string with a \0 termitanion byte
     UTF8 = 0x204,
     /// A u32 integer
@@ -64,9 +64,12 @@ struct IndexTableEntry {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Data {
-    /// A UTF8 string without a \0 termitanion byte
-    UTF8S(String),
-    /// A UTF8 string with a \0 termitanion byte
+    /// An array of bytes
+    ///
+    /// Also known as "utf8 Special Mode" or "utf-s".
+    /// In most cases these are not actual strings though.
+    Bytes(Vec<u8>),
+    /// A UTF8 string
     UTF8(String),
     /// A u32 integer
     Int(u32),
@@ -75,7 +78,7 @@ pub enum Data {
 impl Data {
     pub(crate) fn data_fmt(&self) -> DataFmt {
         match self {
-            Data::UTF8S(_) => DataFmt::UTF8S,
+            Data::Bytes(_) => DataFmt::Bytes,
             Data::UTF8(_) => DataFmt::UTF8,
             Data::Int(_) => DataFmt::Int,
         }
@@ -83,7 +86,7 @@ impl Data {
 
     pub(crate) fn len(&self) -> usize {
         match self {
-            Data::UTF8S(v) => v.len(),
+            Data::Bytes(v) => v.len(),
             Data::UTF8(v) => {
                 if !v.is_empty() {
                     v.len() + 1 // + \0
@@ -202,10 +205,10 @@ impl ParamSFO {
             let data = match entry.data_fmt {
                 DataFmt::UTF8 => Data::UTF8({
                     let mut s = String::from_utf8(data_vec)?;
-                    s.pop();
+                    s.pop(); // remove \0
                     s
                 }),
-                DataFmt::UTF8S => Data::UTF8S(String::from_utf8(data_vec)?),
+                DataFmt::Bytes => Data::Bytes(data_vec),
                 DataFmt::Int => Data::Int({
                     if entry.data_len != 0 {
                         let (int_bytes, _) = data_vec.split_at(size_of::<u32>());
@@ -256,7 +259,7 @@ impl ParamSFO {
             key_table.push(0);
 
             match &entry.data {
-                Data::UTF8S(v) => data_table.extend(v.as_bytes()),
+                Data::Bytes(v) => data_table.extend(v),
                 Data::UTF8(v) => {
                     data_table.extend(v.as_bytes());
                     data_table.push(0);
