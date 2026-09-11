@@ -4,6 +4,9 @@ use std::{
 };
 use thiserror::Error;
 
+/// The most common version of PARAM.SFO.
+pub const DEFAULT_VERSION: [u8; 4] = [1, 1, 0, 0];
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("IO error: {0}")]
@@ -42,7 +45,7 @@ enum DataFmt {
     /// An array of bytes
     Bytes = 0x4,
     /// A UTF8 string with a \0 termitanion byte
-    UTF8 = 0x204,
+    Utf8 = 0x204,
     /// A u32 integer
     Int = 0x404,
 }
@@ -63,31 +66,29 @@ struct IndexTableEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Data {
-    /// An array of bytes
-    ///
-    /// Also known as "utf8 Special Mode" or "utf-s".
+pub enum Value {
+    /// An array of bytes. Also known as "utf8 Special Mode" or "utf-s".
     /// In most cases these are not actual strings though.
     Bytes(Vec<u8>),
-    /// A UTF8 string
-    UTF8(String),
-    /// A u32 integer
+    /// A Utf-8 string.
+    Utf8(String),
+    /// A u32 integer.
     Int(u32),
 }
 
-impl Data {
+impl Value {
     pub(crate) fn data_fmt(&self) -> DataFmt {
         match self {
-            Data::Bytes(_) => DataFmt::Bytes,
-            Data::UTF8(_) => DataFmt::UTF8,
-            Data::Int(_) => DataFmt::Int,
+            Value::Bytes(_) => DataFmt::Bytes,
+            Value::Utf8(_) => DataFmt::Utf8,
+            Value::Int(_) => DataFmt::Int,
         }
     }
 
     pub(crate) fn len(&self) -> usize {
         match self {
-            Data::Bytes(v) => v.len(),
-            Data::UTF8(v) => {
+            Value::Bytes(v) => v.len(),
+            Value::Utf8(v) => {
                 if !v.is_empty() {
                     v.len() + 1 // + \0
                 }
@@ -95,19 +96,19 @@ impl Data {
                     0
                 }
             }
-            Data::Int(_) => size_of::<u32>(),
+            Value::Int(_) => size_of::<u32>(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Entry {
-    data: Data,
+pub struct Data {
+    data: Value,
     max_len: u32,
 }
 
-impl Entry {
-    pub fn new(data: Data, max_len: u32) -> Result<Self, Error> {
+impl Data {
+    pub fn new(data: Value, max_len: u32) -> Result<Self, Error> {
         if data.len() > max_len as usize {
             Err(Error::MaxLenExceeded)
         } else {
@@ -115,11 +116,11 @@ impl Entry {
         }
     }
 
-    pub fn data(&self) -> &Data {
+    pub fn data(&self) -> &Value {
         &self.data
     }
 
-    pub fn set_data(&mut self, data: Data) -> Result<(), Error> {
+    pub fn set_data(&mut self, data: Value) -> Result<(), Error> {
         if data.len() > self.max_len as usize {
             Err(Error::MaxLenExceeded)
         } else {
@@ -132,18 +133,26 @@ impl Entry {
         self.max_len
     }
 
-    pub fn set_max_len(&mut self, max_len: u32) {
-        self.max_len = max_len
+    pub fn set_max_len(&mut self, max_len: u32) -> Result<(), Error> {
+        if self.data.len() > max_len as usize {
+            Err(Error::MaxLenExceeded)
+        } else {
+            self.max_len = max_len;
+            Ok(())
+        }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd)]
 pub struct Key(String);
 
 impl Key {
-    pub fn new(key: impl AsRef<str>) -> Self {
+    pub fn new(key: impl AsRef<str>) -> Result<Self, Error> {
+        if key.as_ref().len() > u32::MAX as usize {
+            return Err(Error::MaxLenExceeded);
+        }
         let key = key.as_ref().to_uppercase();
-        Self(key)
+        Ok( Self(key) )
     }
 
     pub fn as_str(&self) -> &str {
@@ -174,10 +183,20 @@ pub struct ParamSFO {
     version: [u8; 4],
     // We use BTreeMap to automatically sort the keys
     // by alphabetical order, as the format requires it
-    entries: BTreeMap<Key, Entry>,
+    entries: BTreeMap<Key, Data>,
 }
 
 impl ParamSFO {
+    /// Creates an empty PARAM.SFO.
+    pub fn new() -> Self {
+        Self { version: DEFAULT_VERSION, entries: BTreeMap::new() }
+    }
+
+    /// Creates a new PARAM.SFO with the given entries.
+    pub fn with_entries(entries: BTreeMap<Key, Data>) -> Self {
+        Self { version: DEFAULT_VERSION, entries }
+    }
+
     pub fn from_reader<T: Read + Seek>(mut stream: T) -> Result<Self, Error> {
         stream.seek(SeekFrom::Start(0))?;
         let header = Header::read(&mut stream)?;
@@ -195,7 +214,7 @@ impl ParamSFO {
             stream.seek(SeekFrom::Start(
                 (entry.key_offset as u32 + header.key_table_start) as u64,
             ))?;
-            let key = Key::new(Self::read_null_terminated_string(&mut stream)?);
+            let key = Key::new(Self::read_null_terminated_string(&mut stream)?)?;
 
             stream.seek(SeekFrom::Start(
                 (entry.data_offset + header.data_table_start) as u64,
@@ -203,13 +222,12 @@ impl ParamSFO {
             let mut data_vec: Vec<u8> = vec![0; entry.data_len as usize];
             stream.read_exact(&mut data_vec)?;
             let data = match entry.data_fmt {
-                DataFmt::UTF8 => Data::UTF8({
-                    let mut s = String::from_utf8(data_vec)?;
-                    s.pop(); // remove \0
-                    s
+                DataFmt::Utf8 => Value::Utf8({
+                    data_vec.pop(); // remove \0
+                    String::from_utf8(data_vec)?
                 }),
-                DataFmt::Bytes => Data::Bytes(data_vec),
-                DataFmt::Int => Data::Int({
+                DataFmt::Bytes => Value::Bytes(data_vec),
+                DataFmt::Int => Value::Int({
                     if entry.data_len != 0 {
                         let (int_bytes, _) = data_vec.split_at(size_of::<u32>());
                         let res: [u8; size_of::<u32>()] =
@@ -226,7 +244,7 @@ impl ParamSFO {
             };
             entries.insert(
                 key,
-                Entry {
+                Data {
                     data,
                     max_len: entry.data_max_len,
                 },
@@ -259,12 +277,12 @@ impl ParamSFO {
             key_table.push(0);
 
             match &entry.data {
-                Data::Bytes(v) => data_table.extend(v),
-                Data::UTF8(v) => {
+                Value::Bytes(v) => data_table.extend(v),
+                Value::Utf8(v) => {
                     data_table.extend(v.as_bytes());
                     data_table.push(0);
                 },
-                Data::Int(v) => data_table.extend(v.to_le_bytes()),
+                Value::Int(v) => data_table.extend(v.to_le_bytes()),
             };
 
             let data_zero_bytes = entry.max_len as usize - entry.data.len();
@@ -303,12 +321,22 @@ impl ParamSFO {
         Ok(())
     }
 
-    pub fn entries(&self) -> &BTreeMap<Key, Entry> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+        let mut cursor = Cursor::new(Vec::with_capacity(512));
+        self.to_writer(&mut cursor)?;
+        Ok(cursor.into_inner())
+    }
+
+    pub fn entries(&self) -> &BTreeMap<Key, Data> {
         &self.entries
     }
 
-    pub fn entries_mut(&mut self) -> &mut BTreeMap<Key, Entry> {
+    pub fn entries_mut(&mut self) -> &mut BTreeMap<Key, Data> {
         &mut self.entries
+    }
+
+    pub fn set_entries(&mut self, entries: BTreeMap<Key, Data>) {
+        self.entries = entries;
     }
 
     pub fn version(&self) -> [u8; 4] {
