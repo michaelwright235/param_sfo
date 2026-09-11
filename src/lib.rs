@@ -20,7 +20,7 @@ pub enum Error {
 }
 
 #[derive(BinRead, BinWrite, Debug)]
-#[brw(big, magic = 0x00505346u32)]
+#[brw(big, magic = b"\0PSF")]
 struct Header {
     /// The version of SFO. Usually 1.1
     #[brw(big)]
