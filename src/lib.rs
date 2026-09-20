@@ -14,17 +14,17 @@ const U32_SIZE: u32 = size_of::<u32>() as u32;
 /// An error that can occur when working with a `PARAM.SFO` file.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("IO error: {0}")]
+    #[error("I/O error: {0}")]
     IO(#[from] std::io::Error),
     #[error("Invalid format: {0}")]
     InvalidFormat(#[from] binrw::Error),
-    #[error("Invalid UTF8 string: {0}")]
+    #[error("Invalid UTF-8 string: {0}")]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
-    #[error("Exceeded the maximum data length of the current entry.")]
+    #[error("The value exceeds the entry's maximum data length")]
     MaxLenExceeded,
-    #[error("The size of keys, values and max_len vecs doensn't match.")]
+    #[error("The keys, values, and maximum lengths vectors must have the same number of elements")]
     InvalidParts,
-    #[error("The key contains a null byte or exceeds the limit of u32::MAX.")]
+    #[error("The key contains a null byte or exceeds u32::MAX bytes in length")]
     InvalidKey,
 }
 
