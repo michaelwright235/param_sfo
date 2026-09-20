@@ -1,5 +1,5 @@
 [package]
-name = "sfo"
+name = "param_sfo"
 description = "Read and write PARAM.SFO files for PS3"
 authors = ["Michael Wright <maiklpolkovnikov@gmail.com>"]
 license = "MIT OR Apache-2.0"

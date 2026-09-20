@@ -1,4 +1,4 @@
-use sfo::{ParamSFO, param_sfo};
+use param_sfo::{ParamSFO, param_sfo};
 
 #[test]
 fn disc_game_sfo() {

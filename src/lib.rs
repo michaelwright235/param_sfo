@@ -278,7 +278,7 @@ impl TryFrom<String> for Key {
 /// # Examples
 ///
 /// ```
-/// use sfo::{Data, Key, ParamSFO};
+/// use param_sfo::{Data, Key, ParamSFO};
 ///
 /// let mut sfo = ParamSFO::new();
 /// sfo.entries_mut().insert(
@@ -289,7 +289,7 @@ impl TryFrom<String> for Key {
 /// let bytes = sfo.to_bytes()?;
 /// let restored = ParamSFO::from_bytes(&bytes)?;
 /// assert_eq!(restored, sfo);
-/// # Ok::<(), sfo::Error>(())
+/// # Ok::<(), param_sfo::Error>(())
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParamSFO {
@@ -544,7 +544,7 @@ impl Default for ParamSFO {
 /// ## Example
 ///
 /// ```rust
-/// use sfo::{ParamSFO, Error, param_sfo};
+/// use param_sfo::{ParamSFO, Error, param_sfo};
 ///
 /// let key = "MYKEY";
 /// let value = "Hello world!";

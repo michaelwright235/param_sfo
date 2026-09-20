@@ -21,14 +21,14 @@ The following example opens `PARAM.SFO`, adds a new entry,
 and then saves it as `PARAM_modified.SFO`.
 
 ```no_run
-use sfo::{ParamSFO, Data, Key};
+use param_sfo::{ParamSFO, Data, Key};
 let mut sfo = ParamSFO::from_file("./tests/PARAM.SFO")?;
 sfo.entries_mut().insert(
     Key::new("NEWKEY")?,
     Data::new("Some new value".into(), 32)?
 );
 sfo.to_file("./PARAM_modified.SFO")?;
-# Ok::<(), sfo::Error>(())
+# Ok::<(), param_sfo::Error>(())
 ```
 
 ### Creating a new SFO from scratch
@@ -36,7 +36,7 @@ sfo.to_file("./PARAM_modified.SFO")?;
 You can create a new SFO using the `param_sfo!` macro:
 
 ```rust
-use sfo::{ParamSFO, Error, param_sfo};
+use param_sfo::{ParamSFO, Error, param_sfo};
 
 let key = "MYKEY";
 let value = "Hello world!";
@@ -52,7 +52,7 @@ let sfo: Result<ParamSFO, Error> = param_sfo! {
 Alternatively, you can create one manually:
 
 ```rust
-use sfo::{ParamSFO, Key, Data};
+use param_sfo::{ParamSFO, Key, Data};
 use std::collections::BTreeMap;
 
 let mut entries = BTreeMap::new();
@@ -60,5 +60,5 @@ let key = Key::try_from("MYKEY")?;
 let value = Data::new("Hello world!".into(), 32)?;
 entries.insert(key, value);
 let sfo = ParamSFO::with_entries(entries);
-# Ok::<(), sfo::Error>(())
+# Ok::<(), param_sfo::Error>(())
 ```
