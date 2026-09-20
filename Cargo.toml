@@ -1,7 +1,12 @@
 [package]
 name = "sfo"
+description = "Read and write PARAM.SFO files for PS3"
+authors = ["Michael Wright <maiklpolkovnikov@gmail.com>"]
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 edition = "2024"
+categories = ["parser-implementations", "encoding"]
+keywords = ["ps3", "playstation", "sfo", "param-sfo"]
 
 [dependencies]
 binrw = "0.15.2"
