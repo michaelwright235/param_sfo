@@ -62,3 +62,12 @@ entries.insert(key, value);
 let sfo = ParamSFO::with_entries(entries);
 # Ok::<(), param_sfo::Error>(())
 ```
+
+## The use of AI
+
+Every single line of code was written by me. The documentation and error
+messages were corrected and in some cases fully written by ChatGPT.
+
+## License
+
+MIT or Apache 2.0
