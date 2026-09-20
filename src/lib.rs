@@ -1,4 +1,4 @@
-#![doc = include_str!("../README.md")]
+#![doc = include_str!("../README.MD")]
 
 use binrw::{BinRead, BinWrite};
 use std::{
@@ -7,12 +7,11 @@ use std::{
     path::Path,
 };
 
-/// The most common version of PARAM.SFO \(1.1\).
+/// The most common `PARAM.SFO` version (1.1).
 pub const VERSION_1_1: [u8; 4] = [1, 1, 0, 0];
 const U32_SIZE: u32 = size_of::<u32>() as u32;
 
-/// Any possible error that may happen during working with a
-/// PARAM.SFO.
+/// An error that can occur when working with a `PARAM.SFO` file.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("IO error: {0}")]
@@ -32,19 +31,19 @@ pub enum Error {
 #[derive(BinRead, BinWrite, Debug)]
 #[brw(big, magic = b"\0PSF")]
 struct Header {
-    /// The version of SFO. Usually 1.1
+    /// The SFO version, usually 1.1.
     #[brw(big)]
     version: [u8; 4],
 
-    /// Start offset of key_table
+    /// The offset of the key table from the start of the file.
     #[brw(little)]
     key_table_start: u32,
 
-    /// Start offset of data_table
+    /// The offset of the data table from the start of the file.
     #[brw(little)]
     data_table_start: u32,
 
-    /// Number of entries in all tables
+    /// The number of entries in each table.
     #[brw(little)]
     tables_entries: u32,
 }
@@ -52,41 +51,38 @@ struct Header {
 #[derive(BinRead, BinWrite, Debug)]
 #[brw(little, repr = u16)]
 enum DataFmt {
-    /// An array of bytes
+    /// A byte array.
     Bytes = 0x4,
-    /// A UTF8 string with a \0 termitanion byte
+    /// A null-terminated UTF-8 string.
     Utf8 = 0x204,
-    /// A u32 integer
+    /// An unsigned 32-bit integer.
     Int = 0x404,
 }
 
 #[derive(BinRead, BinWrite, Debug)]
 #[brw(little)]
 struct IndexTableEntry {
-    /// param_key offset (relative to start offset of key_table)
+    /// The key offset relative to the start of the key table.
     key_offset: u16,
-    /// param_data data type
+    /// The data type of the value.
     data_fmt: DataFmt,
-    /// param_data used bytes
+    /// The number of bytes used by the value.
     data_len: u32,
-    /// param_data total bytes
+    /// The number of bytes allocated for the value.
     data_max_len: u32,
-    /// param_data offset (relative to start offset of data_table)
+    /// The value offset relative to the start of the data table.
     data_offset: u32,
 }
 
-/// The value of the data.
-///
-/// There are 3 variant of a value.
-/// `Bytes` (a.k.a "utf8 Special Mode", "utf-s"), `Utf8` string and `Int` (u32 integer).
+/// An entry value: a byte array, a UTF-8 string, or an unsigned 32-bit integer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
-    /// An array of bytes, also known as "utf8 Special Mode" or "utf-s".
-    /// In most cases these are not actual strings though.
+    /// A byte array, also known as "UTF-8 Special Mode" or "utf-s".
+    /// The bytes do not necessarily represent a string.
     Bytes(Vec<u8>),
-    /// A Utf-8 string.
+    /// A UTF-8 string.
     Utf8(String),
-    /// A u32 integer.
+    /// An unsigned 32-bit integer.
     Int(u32),
 }
 
@@ -138,9 +134,7 @@ impl From<u32> for Value {
     }
 }
 
-/// The data of an entry.
-///
-/// It contains a [Value] and the maximum length of it.
+/// An entry's [`Value`] and its maximum encoded length in bytes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Data {
     value: Value,
@@ -148,12 +142,11 @@ pub struct Data {
 }
 
 impl Data {
-    /// Creates a new [Data] with the `value` and the `max_len`
-    /// \(maximum length of it\).
+    /// Creates an entry with the given value and maximum encoded length in bytes.
     ///
-    /// If the value is an integer, `max_len` is ignored (u32 is always 4 bytes).
+    /// For integer values, `max_len` is set to 4, the size of a `u32`.
     ///
-    /// Returns an [Error] if the `value`'s length is greater then the `max_len` or [u32::MAX].
+    /// Returns [`Error::MaxLenExceeded`] if the encoded value exceeds `max_len`.
     pub fn new(value: Value, mut max_len: u32) -> Result<Self, Error> {
         if let Value::Int(_) = &value {
             max_len = U32_SIZE;
@@ -165,16 +158,16 @@ impl Data {
         }
     }
 
-    /// Returns an immutable reference to the underlying Value.
+    /// Returns a reference to the underlying [`Value`].
     pub fn value(&self) -> &Value {
         &self.value
     }
 
-    /// Sets and replaces the value with the given one.
+    /// Replaces the current value with the given value.
     ///
-    /// If the new value is an integer, `max_len` is set to 4 (u32 is always 4 bytes).
+    /// If the new value is an integer, `max_len` is set to 4, the size of a `u32`.
     ///
-    /// Returns an [Error] if its length is greater then the `max_len`.
+    /// Returns [`Error::MaxLenExceeded`] if the encoded value exceeds `max_len`.
     pub fn set_value(&mut self, value: Value) -> Result<(), Error> {
         if let Value::Int(_) = &value {
             self.max_len = U32_SIZE;
@@ -187,17 +180,16 @@ impl Data {
         }
     }
 
-    /// Returns the maximum length of the data.
+    /// Returns the maximum encoded length in bytes.
     pub fn max_len(&self) -> u32 {
         self.max_len
     }
 
-    /// Sets the maximum length of the data.
+    /// Sets the maximum encoded length in bytes.
     ///
-    /// If the value is an integer, this method does nothing and returns [Ok]
-    /// (u32 is always 4 bytes).
+    /// For integer values, this method leaves the length at 4 and returns `Ok(())`.
     ///
-    /// Returns an [Error] if the `max_len` is greater then the value's length.
+    /// Returns [`Error::MaxLenExceeded`] if `max_len` is less than the encoded value's length.
     pub fn set_max_len(&mut self, max_len: u32) -> Result<(), Error> {
         if let Value::Int(_) = &self.value {
             return Ok(());
@@ -213,19 +205,18 @@ impl Data {
 
 /// The key of an entry.
 ///
-/// A key itself is a string that contains only uppercase symbols.
-/// When using [Key::new()] the given string is automatically converted
-/// to the uppercase equivalent of itself. This is a requirement of the format.
+/// Keys are stored as uppercase strings, as required by the format.
+/// [`Key::new`] automatically converts the input to uppercase.
 ///
-/// This struct dereferences to &str, thus all its methods are available.
+/// This struct dereferences to [`str`], making its methods available.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Key(String);
 
 impl Key {
-    /// Creates a new [Key] from a given string reference.
+    /// Creates a [`Key`] by converting the given string to uppercase.
     ///
-    /// Returns an error, if it contains a `\0` byte or its length
-    /// is greater than `u32::MAX`
+    /// Returns [`Error::InvalidKey`] if the input contains a null byte or its
+    /// length in bytes exceeds [`u32::MAX`].
     pub fn new<T: AsRef<str>>(key: T) -> Result<Self, Error> {
         if key.as_ref().len() > u32::MAX as usize || key.as_ref().contains('\0') {
             return Err(Error::InvalidKey);
@@ -239,7 +230,7 @@ impl Key {
         &self.0
     }
 
-    /// Consumes itself and returns the underlying [String].
+    /// Consumes the key and returns the underlying [`String`].
     pub fn into_inner(self) -> String {
         self.0
     }
@@ -269,18 +260,48 @@ impl TryFrom<String> for Key {
     }
 }
 
+/// An in-memory representation of a `PARAM.SFO` file.
+///
+/// Stores the file version and a map of [`Key`] to [`Data`]. Entries are kept
+/// in alphabetical order by key for serialization. Each entry contains a
+/// [`Value`] and its maximum encoded length in bytes.
+///
+/// Use [`Self::new`], [`Self::with_entries`], or [`param_sfo!`] to create a file.
+/// Read an existing file with [`Self::from_file`], [`Self::from_bytes`], or
+/// [`Self::from_reader`]. Access or modify its entries with [`Self::entries`]
+/// and [`Self::entries_mut`], then serialize it with [`Self::to_file`],
+/// [`Self::to_bytes`], or [`Self::to_writer`].
+///
+/// New files default to version 1.1 ([`VERSION_1_1`]); reading a file preserves
+/// the version from its header. Use [`Self::set_version`] to change it.
+///
+/// # Examples
+///
+/// ```
+/// use sfo::{Data, Key, ParamSFO};
+///
+/// let mut sfo = ParamSFO::new();
+/// sfo.entries_mut().insert(
+///     Key::new("TITLE")?,
+///     Data::new("My game".into(), 128)?,
+/// );
+///
+/// let bytes = sfo.to_bytes()?;
+/// let restored = ParamSFO::from_bytes(&bytes)?;
+/// assert_eq!(restored, sfo);
+/// # Ok::<(), sfo::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParamSFO {
     version: [u8; 4],
-    // BTreeMap is used to automatically sort the keys
-    // by alphabetical order, as the format requires it
+    // BTreeMap keeps the keys in alphabetical order, as required by the format.
     entries: BTreeMap<Key, Data>,
 }
 
 impl ParamSFO {
-    /// Creates an empty PARAM.SFO.
+    /// Creates an empty `PARAM.SFO`.
     ///
-    /// By default, the version of PARAM.SFO is set to 1.1.
+    /// The version defaults to 1.1.
     /// Use [set_version](Self::set_version) to change it.
     pub fn new() -> Self {
         Self {
@@ -289,9 +310,9 @@ impl ParamSFO {
         }
     }
 
-    /// Creates a new PARAM.SFO with the given entries.
+    /// Creates a `PARAM.SFO` with the given entries.
     ///
-    /// By default, the version of PARAM.SFO is set to 1.1.
+    /// The version defaults to 1.1.
     /// Use [set_version](Self::set_version) to change it.
     pub fn with_entries(entries: BTreeMap<Key, Data>) -> Self {
         Self {
@@ -300,7 +321,7 @@ impl ParamSFO {
         }
     }
 
-    /// Reads a PARAM.SFO from a given stream.
+    /// Reads a `PARAM.SFO` from a stream, seeking to its beginning first.
     pub fn from_reader<T: Read + Seek>(mut stream: T) -> Result<Self, Error> {
         stream.seek(SeekFrom::Start(0))?;
         let header = Header::read(&mut stream)?;
@@ -357,21 +378,25 @@ impl ParamSFO {
         Ok(Self { version, entries })
     }
 
-    /// Reads a PARAM.SFO from a slice of bytes.
+    /// Reads a `PARAM.SFO` from bytes.
     pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Error> {
         let cursor = Cursor::new(bytes);
         Self::from_reader(cursor)
     }
 
-    /// Reads a PARAM.SFO from a file located at `path`.
+    /// Reads a `PARAM.SFO` from the file at `path`.
     pub fn from_file<T: AsRef<Path>>(path: T) -> Result<Self, Error> {
         let file = std::fs::File::open(path)?;
         Self::from_reader(file)
     }
 
-    /// Creates a PARAM.SFO from its parts (vectors of keys, values, max lengths).
+    /// Creates a `PARAM.SFO` from vectors of keys, values, and maximum lengths.
     ///
-    /// Returns an [Error] if the length of given vectors isn't the same.
+    /// The version defaults to 1.1. Keys are converted to uppercase. If multiple
+    /// keys become identical, the last entry replaces the earlier ones.
+    ///
+    /// Returns [`Error::InvalidParts`] if the vectors have different lengths.
+    /// Also returns errors from [`Key::new`] and [`Data::new`].
     pub fn from_parts(
         keys: Vec<String>,
         values: Vec<Value>,
@@ -388,7 +413,7 @@ impl ParamSFO {
         Ok(ParamSFO::with_entries(entries))
     }
 
-    /// Writes the PARAM.SFO to the given stream.
+    /// Writes the `PARAM.SFO` to the stream at its current position.
     pub fn to_writer<T: Write>(&self, mut stream: T) -> Result<(), Error> {
         let mut key_table = Vec::with_capacity(1024);
         let mut data_table = Vec::with_capacity(1024);
@@ -447,40 +472,42 @@ impl ParamSFO {
         Ok(())
     }
 
-    /// Writes the PARAM.SFO to a vector of bytes.
+    /// Serializes the `PARAM.SFO` into a new byte vector.
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut cursor = Cursor::new(Vec::with_capacity(1024));
         self.to_writer(&mut cursor)?;
         Ok(cursor.into_inner())
     }
 
-    /// Writes the PARAM.SFO to a file located at `path`.
+    /// Writes the `PARAM.SFO` to the file at `path`.
+    ///
+    /// Creates the file if it does not exist, or truncates it if it does.
     pub fn to_file(&self, path: impl AsRef<Path>) -> Result<(), Error> {
         let file = std::fs::File::create(path)?;
         self.to_writer(file)
     }
 
-    /// Returns an immutable reference to the entries of the current PARAM.SFO.
+    /// Returns a reference to the entries, ordered alphabetically by key.
     pub fn entries(&self) -> &BTreeMap<Key, Data> {
         &self.entries
     }
 
-    /// Returns a mutable reference to the entries of the current PARAM.SFO.
+    /// Returns a mutable reference to the entries for modification.
     pub fn entries_mut(&mut self) -> &mut BTreeMap<Key, Data> {
         &mut self.entries
     }
 
-    /// Sets and replaces the current entries with the given ones.
+    /// Replaces all entries with the given map.
     pub fn set_entries(&mut self, entries: BTreeMap<Key, Data>) {
         self.entries = entries;
     }
 
-    /// Returns the version of PARAM.SFO.
+    /// Returns the four version bytes stored in the `PARAM.SFO` header.
     pub fn version(&self) -> [u8; 4] {
         self.version
     }
 
-    /// Sets the version of PARAM.SFO.
+    /// Sets the four version bytes stored in the `PARAM.SFO` header.
     pub fn set_version(&mut self, version: [u8; 4]) {
         self.version = version
     }
@@ -506,12 +533,13 @@ impl Default for ParamSFO {
     }
 }
 
-/// A macro that helps building a PARAM.SFO from scratch.
+/// Creates a `PARAM.SFO` from key, value, and maximum-length expressions.
 ///
-/// The format of each line is `key => [value, max_len]`.
-/// For the `key` and `value` you may use either a value
-/// itself or an expression/variable. If a value is an integer,
-/// `max_len` is set to 4 anyway.
+/// Each entry has the form `key => [value, max_len]`, with entries separated by commas.
+/// Keys, values, and maximum lengths can be literals, variables, or expressions.
+/// For integer values, `max_len` is always set to 4.
+///
+/// Returns a `Result<ParamSFO, Error>` using [`ParamSFO::from_parts`].
 ///
 /// ## Example
 ///
@@ -522,7 +550,7 @@ impl Default for ParamSFO {
 /// let value = "Hello world!";
 ///
 /// let sfo: Result<ParamSFO, Error> = param_sfo! {
-///     "STRINGKEY" => ["Value", 4],
+///     "STRINGKEY" => ["Value", 8],
 ///     "BYTESKEY" => [vec![1,2,3], 8],
 ///     "INTKEY" => [123, 4],
 ///     key => [value, 20]

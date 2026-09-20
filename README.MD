@@ -17,17 +17,18 @@ Use the `from_reader`, `from_file`, or `from_bytes` methods of `ParamSFO`
 to read an existing file. Then use the `entries` and `entries_mut` methods
 to access and modify its entries.
 
-The following example opens `PARAM.SFO` from the current directory, adds a new entry,
+The following example opens `PARAM.SFO`, adds a new entry,
 and then saves it as `PARAM_modified.SFO`.
 
-```rust
-use sfo::{ParamSFO, Data};
-let mut sfo = ParamSFO::from_file("./PARAM.SFO")?;
+```no_run
+use sfo::{ParamSFO, Data, Key};
+let mut sfo = ParamSFO::from_file("./tests/PARAM.SFO")?;
 sfo.entries_mut().insert(
-    "NEWKEY".try_into()?,
+    Key::new("NEWKEY")?,
     Data::new("Some new value".into(), 32)?
 );
-sfo.to_file("./PARAM_modified.SFO")?
+sfo.to_file("./PARAM_modified.SFO")?;
+# Ok::<(), sfo::Error>(())
 ```
 
 ### Creating a new SFO from scratch
@@ -41,7 +42,7 @@ let key = "MYKEY";
 let value = "Hello world!";
 
 let sfo: Result<ParamSFO, Error> = param_sfo! {
-    "STRINGKEY" => ["Value", 4],
+    "STRINGKEY" => ["Value", 8],
     "BYTESKEY" => [vec![1,2,3], 8],
     "INTKEY" => [123, 4],
     key => [value, 20]
@@ -59,4 +60,5 @@ let key = Key::try_from("MYKEY")?;
 let value = Data::new("Hello world!".into(), 32)?;
 entries.insert(key, value);
 let sfo = ParamSFO::with_entries(entries);
+# Ok::<(), sfo::Error>(())
 ```
