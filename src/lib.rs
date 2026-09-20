@@ -43,7 +43,7 @@ struct Header {
     #[brw(little)]
     data_table_start: u32,
 
-    /// The number of entries in each table.
+    /// The total number of entries.
     #[brw(little)]
     tables_entries: u32,
 }
@@ -266,14 +266,16 @@ impl TryFrom<String> for Key {
 /// in alphabetical order by key for serialization. Each entry contains a
 /// [`Value`] and its maximum encoded length in bytes.
 ///
-/// Use [`Self::new`], [`Self::with_entries`], or [`param_sfo!`] to create a file.
-/// Read an existing file with [`Self::from_file`], [`Self::from_bytes`], or
-/// [`Self::from_reader`]. Access or modify its entries with [`Self::entries`]
-/// and [`Self::entries_mut`], then serialize it with [`Self::to_file`],
-/// [`Self::to_bytes`], or [`Self::to_writer`].
+/// Use [`new`](Self::new), [`with_entries`](Self::with_entries), or
+/// [`param_sfo!`] macro to create a file. Read an existing file with
+/// [`from_file`](Self::from_file), [`from_bytes`](Self::from_bytes), or
+/// [`from_reader`](Self::from_reader). Access or modify its entries with
+/// [`entries`](Self::entries) and [`entries_mut`](Self::entries_mut), then
+/// serialize it with [`to_file`](Self::to_file), [`to_bytes`](Self::to_bytes),
+/// or [`to_writer`](Self::to_writer).
 ///
-/// New files default to version 1.1 ([`VERSION_1_1`]); reading a file preserves
-/// the version from its header. Use [`Self::set_version`] to change it.
+/// New files default to version 1.1. Reading a file preserves
+/// the version from its header. Use [`set_version`](Self::set_version) to change it.
 ///
 /// # Examples
 ///

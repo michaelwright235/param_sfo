@@ -1,6 +1,6 @@
 # param_sfo: read and write PARAM.SFO files for PS3
 
-This library lets you create and modify `PARAM.SFO` files for PS3.
+This library lets you create and modify `PARAM.SFO` files for PlayStation 3.
 SFO (System File Object) files store metadata for content displayed in the XMB,
 saved games, and trophies. For more information, see the
 [format description](https://www.psdevwiki.com/ps3/PARAM.SFO).
@@ -20,7 +20,7 @@ to access and modify its entries.
 The following example opens `PARAM.SFO`, adds a new entry,
 and then saves it as `PARAM_modified.SFO`.
 
-```no_run
+```rust
 use param_sfo::{ParamSFO, Data, Key};
 let mut sfo = ParamSFO::from_file("./tests/PARAM.SFO")?;
 sfo.entries_mut().insert(
@@ -28,7 +28,6 @@ sfo.entries_mut().insert(
     Data::new("Some new value".into(), 32)?
 );
 sfo.to_file("./PARAM_modified.SFO")?;
-# Ok::<(), param_sfo::Error>(())
 ```
 
 ### Creating a new SFO from scratch
@@ -60,7 +59,6 @@ let key = Key::try_from("MYKEY")?;
 let value = Data::new("Hello world!".into(), 32)?;
 entries.insert(key, value);
 let sfo = ParamSFO::with_entries(entries);
-# Ok::<(), param_sfo::Error>(())
 ```
 
 ## The use of AI
