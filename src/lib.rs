@@ -355,7 +355,7 @@ impl ParamSFO {
                 }),
                 DataFmt::Bytes => Value::Bytes(data_vec),
                 DataFmt::Int => Value::Int({
-                    if entry.data_len != 0 {
+                    if entry.data_len == 4 {
                         let (int_bytes, _) = data_vec.split_at(U32_SIZE as usize);
                         let res: [u8; U32_SIZE as usize] =
                             int_bytes.try_into().map_err(|e| binrw::Error::Custom {
@@ -364,7 +364,10 @@ impl ParamSFO {
                             })?;
                         u32::from_le_bytes(res)
                     } else {
-                        0
+                        return Err(Error::InvalidFormat(binrw::Error::Custom{
+                            pos: stream.stream_position()?,
+                            err: Box::new(format!("Expected an integer to be 4 bytes long, got {}.", entry.data_len))
+                        }))
                     }
                 }),
             };
