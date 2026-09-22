@@ -440,6 +440,11 @@ impl ParamSFO {
             let data_zero_bytes = (entry.max_len - entry.value.len()) as usize;
             data_table.extend(&vec![0; data_zero_bytes]);
 
+            if current_key_offset >= u16::MAX as usize ||
+            current_data_offset >= u32::MAX as usize {
+                return Err(Error::MaxLenExceeded);
+            }
+
             let table_entry = IndexTableEntry {
                 key_offset: current_key_offset as u16,
                 data_fmt: entry.value.data_fmt(),
@@ -453,12 +458,18 @@ impl ParamSFO {
 
         let index_table_entries = index_table_entries.into_inner();
         let key_padding = 4 - ((0x14 + index_table_entries.len() + key_table.len()) % 4);
+        let key_table_start = 0x14 + index_table_entries.len();
+        let data_table_start = 0x14
+                + (index_table_entries.len() + key_table.len() + key_padding);
+
+        if key_table_start >= u32::MAX as usize || data_table_start >= u32::MAX as usize {
+            return Err(Error::MaxLenExceeded);
+        }
 
         let header = Header {
             version: self.version,
-            key_table_start: 0x14 + index_table_entries.len() as u32,
-            data_table_start: 0x14
-                + (index_table_entries.len() + key_table.len() + key_padding) as u32,
+            key_table_start: key_table_start as u32,
+            data_table_start: data_table_start as u32,
             tables_entries: self.entries.len() as u32,
         };
         let mut header_bytes = Cursor::new(Vec::with_capacity(0x14));

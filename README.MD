@@ -63,7 +63,7 @@ let sfo = ParamSFO::with_entries(entries);
 
 ## The use of AI
 
-Every single line of code was written by me. The documentation and error
+Every single line of the code was written by me. The documentation and error
 messages were corrected and in some cases fully written by ChatGPT.
 
 ## License
