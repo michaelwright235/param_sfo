@@ -373,10 +373,7 @@ impl ParamSFO {
             };
             entries.insert(
                 key,
-                Data {
-                    value: data,
-                    max_len: entry.data_max_len,
-                },
+                Data::new(data, entry.data_max_len)?,
             );
         }
 
