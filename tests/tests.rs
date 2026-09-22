@@ -27,3 +27,26 @@ fn disc_game_sfo() {
     assert_eq!(original, custom);
     assert_eq!(original_bytes, custom.to_bytes().unwrap());
 }
+
+#[test]
+fn empty_string() {
+    let sfo = param_sfo! {
+        "ABC" => [123, 4],
+        "STRING" => ["", 5],
+        "INT" => [123, 4]
+    }.unwrap();
+    let bytes = sfo.to_bytes().unwrap();
+    let sfo2 = ParamSFO::from_bytes(&bytes).unwrap();
+    let bytes2 = sfo2.to_bytes().unwrap();
+
+    assert_eq!(sfo, sfo2);
+    assert_eq!(bytes, bytes2);
+}
+
+#[test]
+fn empty() {
+    let sfo = param_sfo! {}.unwrap();
+    let bytes = sfo.to_bytes().unwrap();
+    let empty = ParamSFO::from_bytes(bytes).unwrap();
+    assert_eq!(empty.entries().len(), 0)
+}
