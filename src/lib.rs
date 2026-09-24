@@ -415,6 +415,11 @@ impl ParamSFO {
         Ok(ParamSFO::with_entries(entries))
     }
 
+    /// Consumes itself and returns the underlying map of entries.
+    pub fn into_inner(self) -> BTreeMap<Key, Data> {
+        self.entries
+    }
+
     /// Writes the `PARAM.SFO` to the stream at its current position.
     pub fn to_writer<T: Write>(&self, mut stream: T) -> Result<(), Error> {
         let mut key_table = Vec::with_capacity(1024);
